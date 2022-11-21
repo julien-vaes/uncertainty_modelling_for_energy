@@ -24,36 +24,61 @@ import seaborn as sns
 theGreen = sns.color_palette("Paired")[3]
 theBlue = sns.color_palette("Paired")[1]
 
-def normalise_to_normal(aNormalisedData,aOriginalData):
-    myNormalisedDataPointsInOriginalBasis = copy.deepcopy(aNormalisedData)
-    for k in aNormalisedData.keys():
-        myMean = np.mean(aOriginalData[k])
-        myStd  = np.std(aOriginalData[k])
-        myNormalisedDataPointsInOriginalBasis[k] *= myStd
-        myNormalisedDataPointsInOriginalBasis[k] += myMean
-    return myNormalisedDataPointsInOriginalBasis
-
-def plot_quantiles(aPlot,aY):
-    
-    aPlot.plot(range(24),np.median(aY,axis=1),color='k',linewidth=1)
-    myQuantilesToPlot = [25,50,74]
-    myColours = sns.color_palette("tab20c")
-    for i in range(len(myQuantilesToPlot)):
-        q = myQuantilesToPlot[i]
-        myUpperQuant = np.array(np.percentile(aY, 100.0 - q/2.0, axis=1), dtype=float)
-        myBottomQuant = np.array(np.percentile(aY, q/2.0, axis=1), dtype=float)
-        aPlot.fill_between(range(24),myUpperQuant,myBottomQuant,color=myColours[i])
-
 def get_data(aFile):
   
     # imports the data
     myData = pd.read_csv(aFile)
     myData.drop('WindOff_WM', inplace=True, axis=1)
 
-    # normalises the data: each column is then zero mean and 1 std 
-    myNormalisedData = (myData - myData.mean()) / myData.std()
+    return myData
 
-    return myData, myNormalisedData
+def transform_data_daily_profiles(aData,aNPointsDailyProfile = 24):
+
+    # original data: returns a dictionary where each index corresponds to an attribute (e.g. 'Solar_EA', 'ELEC') and contains an array with the daily profiles: each line correspond to a daily profile
+    myColumns = aData.columns.tolist()
+
+    # gets the number of data points
+    myNDataPoints = int( float(aData.shape[0]) / float(aNPointsDailyProfile) ) # raises an error if this does not fit
+
+    # initialises the dictionary
+    myDictDataAttributes = {myColumns[i] : aData[myColumns[i]].values for i in range(aData.shape[1])}
+
+    return {k : myDictDataAttributes[k].reshape(myNDataPoints,aNPointsDailyProfile) for k in myDictDataAttributes}
+
+def standardize_data(aDictData):
+
+    # initialises the output dictionary
+    myStandardizedData = {}
+    myMeanData = {}
+    myStdData = {}
+
+    # computes the mean and std of the daily profile for each attribute 
+    for k in aDictData:
+        myMeanData[k] = np.mean(aDictData[k],axis=0)
+        myStd = np.std(aDictData[k],axis=0)
+        myStd[myStd == 0.0] = 1.0
+        myStdData[k] = myStd
+
+    # standardizes the data for each attribute: each element in the daily profile is then fixed to have zero mean and 1 std 
+    for k in aDictData:
+        myStandardizedData[k] = (aDictData[k] - myMeanData[k])
+        myStandardizedData[k] = myStandardizedData[k] / myStdData[k]
+
+    def standardized_data_to_original_data(aStandardizedData):
+        myRecoveredOrignalData = {}
+        for k in aStandardizedData:
+            myRecoveredOrignalData[k]  = aStandardizedData[k] * myStdData[k]
+            myRecoveredOrignalData[k] += myMeanData[k]
+        return myRecoveredOrignalData 
+
+    return myStandardizedData, standardized_data_to_original_data 
+
+def get_stats_daily_continuity(aData):
+    myDictStatsDailyContinuity = {}
+    for k in aData:
+        myDiffFirstWithLastComponent = aData[k][1:,0] - aData[k][:-1,-1]
+        myDictStatsDailyContinuity[k] = {'Mean':np.mean(myDiffFirstWithLastComponent), 'Std':np.std(myDiffFirstWithLastComponent)}
+    return myDictStatsDailyContinuity
 
 def get_data_with_peak_info(aFile):
   
@@ -124,6 +149,11 @@ def get_array_data_points(aData):
 
 def my_quantile(x):
     return np.quantile(x, 0.4)
+
+# sorts the clusters attribution
+def get_sorted_attribution_indices(aClusterAttribution):
+
+    return list(np.argsort(np.array([my_quantile(clus_att) for clus_att in aClusterAttribution])))
 
 # sorts the clusters attribution
 def get_sorted_attribution(aClusterAttribution):
@@ -504,7 +534,8 @@ def generates_plot_clustering(aClusterAttribution,aData,aAttributesToPlot,aOutpu
         myNLines = int(np.ceil(myNClusters / float(myNCols)))  
         
         # gets the cluster attribution sorted in decreasing number of days in each cluster
-        mySortedClusterAttribution = get_sorted_attribution(aClusterAttribution)
+        # mySortedClusterAttribution = get_sorted_attribution(aClusterAttribution)
+        mySortedClusterAttribution = aClusterAttribution
         
         for att_loc in aAttributesToPlot: # loop on the attributes
             
@@ -730,3 +761,14 @@ def generates_plot_clustering(aClusterAttribution,aData,aAttributesToPlot,aOutpu
                 myFigPath += '.'+aImageFormat
                 plt.savefig(myFigPath,bbox_inches='tight')
                 plt.close()
+
+def plot_quantiles(aPlot,aY):
+    aPlot.plot(range(24),np.median(aY,axis=1),color='k',linewidth=1)
+    myQuantilesToPlot = [25,50,74]
+    myColours = sns.color_palette("tab20c")
+    for i in range(len(myQuantilesToPlot)):
+        q = myQuantilesToPlot[i]
+        myUpperQuant = np.array(np.percentile(aY, 100.0 - q/2.0, axis=1), dtype=float)
+        myBottomQuant = np.array(np.percentile(aY, q/2.0, axis=1), dtype=float)
+        aPlot.fill_between(range(24),myUpperQuant,myBottomQuant,color=myColours[i])
+
