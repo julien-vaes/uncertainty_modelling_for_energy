@@ -38,7 +38,7 @@ which describes the environments needed to run the scripts, i.e.
    `pip install -r requirements.txt`
 
    This command will read the `requirements.txt` file and install all the necessary packages and their versions into the current virtual environment.
-6. Before running ```jupyter```, make sure that it corresponds to the one installed in the environment myenv by running:
+6. Before running `jupyter`, make sure that it corresponds to the one installed in the environment `myenv` by running:
 - For Windows:
 ```
 where jupyter
@@ -47,7 +47,7 @@ where jupyter
 ```
 which jupyter
 ```
-If the location is still your base environment, activate again the environment (and then verify that the jupyter is now install in myenv):
+If the location is still your base environment, activate again the environment (and then verify that `jupyter` is now install in myenv):
 - For Windows:
   ```
   myenv\Scripts\activate
