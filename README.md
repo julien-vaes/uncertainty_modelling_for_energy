@@ -60,7 +60,7 @@ If the location is still your base environment, activate again the environment (
 7. Once the installation is complete, you can run your code within the activated virtual environment, and it will use the installed packages and versions specified in the `requirements.txt` file.
 
 By following these steps, you will have recreated the environment based on the `requirements.txt` file, ensuring that all the required packages and versions are installed and ready to use.
-Launch jupyter with:
+Launch `jupyter` with:
 ```
 jupyter notebook
 ```
